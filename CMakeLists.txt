@@ -165,6 +165,17 @@ if(NINTENDO_SWITCH)
 		set(CMAKE_STATIC_LIBRARY_PREFIX "")
 	else()
 		add_executable(${PROJECT_NAME} core/emulator.cpp)
+		
+		# Link SDL2 for Switch
+		if(TARGET SDL2::SDL2-static)
+			target_link_libraries(${PROJECT_NAME} PRIVATE SDL2::SDL2-static)
+		elseif(TARGET SDL2::SDL2)
+			target_link_libraries(${PROJECT_NAME} PRIVATE SDL2::SDL2)
+		else()
+			# Fallback for devkitPro system libs if CMake target isn't found
+			target_link_libraries(${PROJECT_NAME} PRIVATE SDL2)
+		endif()
+
 	endif()
 	if(USE_GLES)
 		target_compile_definitions(${PROJECT_NAME} PRIVATE GLES)
@@ -974,7 +985,6 @@ endif()
 
 if(NOT LIBRETRO)
 	target_sources(${PROJECT_NAME} PRIVATE
-			core/deps/rcheevos/src/rc_client_raintegration.c
 			core/deps/rcheevos/src/rc_client.c
 			core/deps/rcheevos/src/rc_compat.c
 			core/deps/rcheevos/src/rc_util.c
@@ -1003,8 +1013,17 @@ if(NOT LIBRETRO)
 			core/deps/rcheevos/src/rhash/hash.c
 			core/deps/rcheevos/src/rhash/md5.c
 			core/deps/rcheevos/src/rurl/url.c)
+	
+	# Add rcheevos includes
 	target_include_directories(${PROJECT_NAME} PRIVATE core/deps/rcheevos/include)
+	
 	target_compile_definitions(${PROJECT_NAME} PRIVATE USE_RACHIEVEMENTS RC_DISABLE_LUA)
+
+	# Enable RAIntegration for Windows only
+	if(WIN32 AND NOT WINDOWS_STORE)
+		target_compile_definitions(${PROJECT_NAME} PRIVATE RC_CLIENT_SUPPORTS_RAINTEGRATION RC_CLIENT_SUPPORTS_EXTERNAL)
+		target_sources(${PROJECT_NAME} PRIVATE core/deps/rcheevos/src/rc_client_raintegration.c)
+	endif()
 endif()
 
 if(USE_OPENGL)
@@ -1307,10 +1326,13 @@ endif()
 
 if((USE_OPENGL OR USE_GLES2 OR USE_GLES) AND NOT LIBRETRO)
 	add_library(glad STATIC core/deps/glad/src/gl.c)
-	if(NOT APPLE AND NOT WIN32 AND NOT SDL2_FOUND)
-		# When SDL2 is not found, we can use EGL with ANativeWindow (Android) or X11
+	
+	# Force EGL loader on Android even if SDL2 is found
+	if(ANDROID OR (NOT APPLE AND NOT WIN32 AND NOT SDL2_FOUND))
+		# When SDL2 is not found (or on Android), we use EGL with ANativeWindow or X11
 		target_sources(glad PRIVATE core/deps/glad/src/egl.c)
 	endif()
+
 	target_include_directories(glad PUBLIC core/deps/glad/include)
 	target_link_libraries(${PROJECT_NAME} PRIVATE glad)
 endif()
@@ -1629,4 +1651,35 @@ endif()
 if(${CMAKE_GENERATOR} MATCHES "^Xcode.*|^Visual Studio.*")
 	file(GLOB_RECURSE SRC_FILES *.h *.cpp *.c *.cc *.mm)
 	source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SRC_FILES})
+endif()
+
+set(SOUND_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/resources/sounds")
+
+if(EXISTS "${SOUND_SRC_DIR}")
+	# For Windows / Linux (Not Android, Not Libretro, Not Apple)
+	# Copies files to the folder where the executable is built
+	if(NOT ANDROID AND NOT LIBRETRO AND NOT APPLE)
+		add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+			COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:${PROJECT_NAME}>/data/sounds
+			COMMAND ${CMAKE_COMMAND} -E copy_directory "${SOUND_SRC_DIR}" $<TARGET_FILE_DIR:${PROJECT_NAME}>/data/sounds
+			COMMENT "Copying sound resources to executable directory..."
+		)
+	endif()
+
+	# For Apple (macOS/iOS) - We add as Bundle Resources to satisfy CodeSign
+	if(APPLE AND NOT LIBRETRO)
+		file(GLOB SOUND_FILES "${SOUND_SRC_DIR}/*.wav")
+		target_sources(${PROJECT_NAME} PRIVATE ${SOUND_FILES})
+		# This places files in Flycast.app/Contents/Resources/data/sounds
+		set_source_files_properties(${SOUND_FILES} PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/data/sounds")
+	endif()
+
+	# For Android
+	# Copies files into the Android Studio assets folder so they get bundled into the APK
+	if(ANDROID)
+		set(ANDROID_ASSETS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/shell/android-studio/flycast/src/main/assets/data/sounds")
+		file(MAKE_DIRECTORY "${ANDROID_ASSETS_DIR}")
+		file(COPY "${SOUND_SRC_DIR}/" DESTINATION "${ANDROID_ASSETS_DIR}")
+		message(STATUS "Copied sound resources to Android Assets: ${ANDROID_ASSETS_DIR}")
+	endif()
 endif()

@@ -8,6 +8,8 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
+import android.media.AudioAttributes;
+import android.media.SoundPool;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -35,8 +37,10 @@ import com.flycast.emulator.periph.SipEmulator;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import static android.content.res.Configuration.HARDKEYBOARDHIDDEN_NO;
 import static android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
@@ -274,8 +278,8 @@ public abstract class BaseGLActivity extends Activity implements ActivityCompat.
             for (InputDevice.MotionRange range : axes)
             {
                 if ((range.getSource() & InputDevice.SOURCE_CLASS_MASK) != InputDevice.SOURCE_CLASS_JOYSTICK)
-		            // Ignore mouse/touchpad axes (dualshock 4)
-		            continue;
+                    // Ignore mouse/touchpad axes (dualshock 4)
+                    continue;
                 if (range.getAxis() == MotionEvent.AXIS_HAT_X) {
                     float v = event.getAxisValue(MotionEvent.AXIS_HAT_X, actionPointerIndex);
                     if (v == -1.0) {
@@ -457,12 +461,55 @@ public abstract class BaseGLActivity extends Activity implements ActivityCompat.
     }
 
     private static native void register(BaseGLActivity activity);
-    
-	public String getNativeLibDir() {
+
+    public String getNativeLibDir() {
         return getApplicationContext().getApplicationInfo().nativeLibraryDir;
     }
-    
-	public String getInternalFilesDir() {
+
+    public String getInternalFilesDir() {
         return getFilesDir().getAbsolutePath();
+    }
+
+    // RA Sound Support
+    private SoundPool raSoundPool;
+    private Map<String, Integer> raSoundMap = new HashMap<>();
+
+    // Called from C++ via JNI
+    public void playRASound(String filename) {
+        runOnUiThread(() -> {
+            if (raSoundPool == null) {
+                AudioAttributes attributes = new AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_GAME)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build();
+                raSoundPool = new SoundPool.Builder()
+                        .setAudioAttributes(attributes)
+                        .setMaxStreams(3)
+                        .build();
+            }
+
+            if (!raSoundMap.containsKey(filename)) {
+                try {
+                    // Try to load asset from "data/sounds/filename"
+                    // This assumes CMake copied the wav files to src/main/assets/data/sounds/
+                    android.content.res.AssetFileDescriptor fd = getAssets().openFd("data/sounds/" + filename);
+                    int soundId = raSoundPool.load(fd, 1);
+                    raSoundMap.put(filename, soundId);
+
+                    // SoundPool loading is async, so we must wait for it to load
+                    raSoundPool.setOnLoadCompleteListener((pool, sampleId, status) -> {
+                        if (status == 0) pool.play(sampleId, 1.0f, 1.0f, 0, 0, 1.0f);
+                    });
+                } catch (java.io.IOException e) {
+                    Log.e("Flycast", "Failed to load sound asset: " + filename);
+                }
+            } else {
+                // Sound already loaded, play it immediately
+                Integer soundId = raSoundMap.get(filename);
+                if (soundId != null) {
+                    raSoundPool.play(soundId, 1.0f, 1.0f, 0, 0, 1.0f);
+                }
+            }
+        });
     }
 }

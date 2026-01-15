@@ -189,7 +189,7 @@ private:
 #ifdef LIBRETRO
 		if (renderToScreen)
 			retro_resize_renderer(_pvrrc->rend.framebufferWidth, _pvrrc->rend.framebufferHeight,
-					getOutputFramebufferAspectRatio());
+				getOutputFramebufferAspectRatio());
 #endif
 		{
 			FC_PROFILE_SCOPE_NAMED("Renderer::Process");
@@ -260,6 +260,12 @@ bool rend_single_frame(const bool& enabled)
 		if (!pvrQueue.waitAndExecute(timeout))
 			return false;
 	return true;
+}
+
+void rend_present()
+{
+	if (rend_is_enabled())
+		pvrQueue.enqueue(PvrMessageQueue::Present);
 }
 
 Renderer* rend_GLES2();
@@ -447,7 +453,7 @@ int rend_end_render(int tag, int cycles, int jitter, void *arg)
 void rend_vblank()
 {
 	if (config::EmulateFramebuffer
-			|| (!render_called && fb_dirty && FB_R_CTRL.fb_enable))
+		|| (!render_called && fb_dirty && FB_R_CTRL.fb_enable))
 	{
 		if (rend_is_enabled())
 		{

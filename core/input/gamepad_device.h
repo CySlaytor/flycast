@@ -3,18 +3,18 @@
 
 	This file is part of reicast.
 
-    reicast is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 2 of the License, or
-    (at your option) any later version.
+	reicast is free software: you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation, either version 2 of the License, or
+	(at your option) any later version.
 
-    reicast is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+	reicast is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with reicast.  If not, see <https://www.gnu.org/licenses/>.
+	You should have received a copy of the GNU General Public License
+	along with reicast.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 #pragma once
@@ -137,10 +137,13 @@ public:
 	//! The axis value which causes a button deactivation (for axis to button mapping) (exclusive)
 	static const int AXIS_DEACTIVATION_VALUE = 8192; // 25% deflection as "released" threshold
 
+	// Used by Emulator Hotkeys to check current button state
+	const InputMapping::InputSet& get_input_state() const {return currentInputs;}
+
 protected:
 	GamepadDevice(int maple_port, const char *api_name, bool remappable = true)
 		: _api_name(api_name), _maple_port(maple_port), _remappable(remappable),
-		  digitalToAnalogState{}
+		digitalToAnalogState{}
 	{
 		// Initialize pressedButtons sets
 		currentInputs.clear();

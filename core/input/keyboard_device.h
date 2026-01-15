@@ -3,18 +3,18 @@
 
 	This file is part of Flycast.
 
-    Flycast is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 2 of the License, or
-    (at your option) any later version.
+	Flycast is free software: you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation, either version 2 of the License, or
+	(at your option) any later version.
 
-    Flycast is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+	Flycast is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with Flycast.  If not, see <https://www.gnu.org/licenses/>.
+	You should have received a copy of the GNU General Public License
+	along with Flycast.  If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
 #include "types.h"
@@ -64,6 +64,24 @@ public:
 		set_button(DC_BTN_D, 4);				// Q (Coin)
 		set_button(EMU_BTN_SCREENSHOT, 69);		// F12
 
+		// Save/Load State Defaults (Slots 1-10)
+		// F1 (0x3A) to F10 (0x43)
+		for (int i = 0; i < 10; i++)
+		{
+			u32 fkey = 0x3A + i;
+
+			// Load: F#
+			set_button((DreamcastKey)(EMU_BTN_LOAD_SLOT_1 + i), fkey);
+
+			// Save: Left Shift (0xE1) + F#
+			InputMapping::InputSet saveCombo;
+			saveCombo.insert_back(InputMapping::InputDef::from_button(0xE1)); // Left Shift
+			saveCombo.insert_back(InputMapping::InputDef::from_button(fkey)); // F#
+
+			// Sequential = false allows pressing keys in any order (e.g. Hold Shift then F1)
+			set_button((DreamcastKey)(EMU_BTN_SAVE_SLOT_1 + i), InputMapping::ButtonCombo{ saveCombo, false });
+		}
+
 		dirty = false;
 	}
 };
@@ -89,7 +107,7 @@ protected:
 		// then check if the "Bypass Emulated Keyboard" hotkey is held and we're not in GUI,
 		// if so: send emu hotkeys only and return earlier.
 		if ((settings.platform.isConsole() && portIsValid && config::MapleMainDevices[port] == MDT_Keyboard)
-				|| (settings.platform.isArcade() && settings.input.keyboardGame))
+			|| (settings.platform.isArcade() && settings.input.keyboardGame))
 		{
 			if (keycode == input_mapper->get_button_code(0, EMU_BTN_BYPASS_KB))
 				bypass_kb = pressed && !gui_keyboard_captured();
@@ -108,25 +126,25 @@ protected:
 		// keyboards.
 		switch (keycode)
 		{
-			case 0xE1: // Left Shift
-			case 0xE5: // Right Shift
-				setFlag(_modifier_keys, DC_KBMOD_LEFTSHIFT | DC_KBMOD_RIGHTSHIFT, pressed);
-				break;
-			case 0xE0: // Left Ctrl
-			case 0xE4: // Right Ctrl
-				setFlag(_modifier_keys, DC_KBMOD_LEFTCTRL | DC_KBMOD_RIGHTCTRL, pressed);
-				break;
-			case 0xE2: // Left Alt
-				setFlag(_modifier_keys, DC_KBMOD_LEFTALT, pressed);
-				break;
-			case 0xE6: // Right Alt
-				setFlag(_modifier_keys, DC_KBMOD_RIGHTALT, pressed);
-				break;
-			case 0xE7: // S2 special key
-				setFlag(_modifier_keys, DC_KBMOD_S2, pressed);
-				break;
-			default:
-				break;
+		case 0xE1: // Left Shift
+		case 0xE5: // Right Shift
+			setFlag(_modifier_keys, DC_KBMOD_LEFTSHIFT | DC_KBMOD_RIGHTSHIFT, pressed);
+			break;
+		case 0xE0: // Left Ctrl
+		case 0xE4: // Right Ctrl
+			setFlag(_modifier_keys, DC_KBMOD_LEFTCTRL | DC_KBMOD_RIGHTCTRL, pressed);
+			break;
+		case 0xE2: // Left Alt
+			setFlag(_modifier_keys, DC_KBMOD_LEFTALT, pressed);
+			break;
+		case 0xE6: // Right Alt
+			setFlag(_modifier_keys, DC_KBMOD_RIGHTALT, pressed);
+			break;
+		case 0xE7: // S2 special key
+			setFlag(_modifier_keys, DC_KBMOD_S2, pressed);
+			break;
+		default:
+			break;
 		}
 		if (portIsValid)
 			kb_shift[port] = _modifier_keys;
@@ -177,9 +195,9 @@ protected:
 		// Do not map keyboard keys to gamepad buttons unless the GUI is open
 		// or the corresponding maple device (if any) isn't a keyboard
 		else if (gui_is_open()
-				|| port == (int)std::size(kb_key)
-				|| (settings.platform.isConsole() && (!portIsValid || config::MapleMainDevices[port] != MDT_Keyboard))
-				|| (settings.platform.isArcade() && !settings.input.keyboardGame))
+			|| port == (int)std::size(kb_key)
+			|| (settings.platform.isConsole() && (!portIsValid || config::MapleMainDevices[port] != MDT_Keyboard))
+			|| (settings.platform.isArcade() && !settings.input.keyboardGame))
 			gamepad_btn_input(keycode, pressed);
 	}
 

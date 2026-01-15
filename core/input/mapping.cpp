@@ -3,20 +3,21 @@
 
 	This file is part of reicast.
 
-    reicast is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 2 of the License, or
-    (at your option) any later version.
+	reicast is free software: you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation, either version 2 of the License, or
+	(at your option) any later version.
 
-    reicast is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+	reicast is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with reicast.  If not, see <https://www.gnu.org/licenses/>.
+	You should have received a copy of the GNU General Public License
+	along with reicast.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include <cmath>
+#include <iterator> // Required for std::size
 #include "mapping.h"
 #include "cfg/ini.h"
 #include "stdclass.h"
@@ -64,6 +65,36 @@ button_list[] =
 	{ EMU_BTN_SAVESTATE, "emulator", "btn_quick_save" },
 	{ EMU_BTN_BYPASS_KB, "emulator", "btn_bypass_kb" },
 	{ EMU_BTN_SCREENSHOT, "emulator", "btn_screenshot" },
+
+	// Extended Hotkeys
+	{ (DreamcastKey)EMU_BTN_TOGGLE_FF, "emulator", "btn_fforward_toggle" },
+	{ (DreamcastKey)EMU_BTN_PAUSE, "emulator", "btn_pause" },
+	{ (DreamcastKey)EMU_BTN_FRAME_ADV, "emulator", "btn_frame_advance" },
+
+	// Save/Load Slots
+	// IMPORTANT: We use words (one, two, three) here because the input loader 
+	// interprets suffixes '1', '2', '3' as controller ports and strips them.
+	{ (DreamcastKey)EMU_BTN_SAVE_SLOT_1, "emulator", "btn_save_slot_one" },
+	{ (DreamcastKey)EMU_BTN_SAVE_SLOT_2, "emulator", "btn_save_slot_two" },
+	{ (DreamcastKey)EMU_BTN_SAVE_SLOT_3, "emulator", "btn_save_slot_three" },
+	{ (DreamcastKey)EMU_BTN_SAVE_SLOT_4, "emulator", "btn_save_slot_4" },
+	{ (DreamcastKey)EMU_BTN_SAVE_SLOT_5, "emulator", "btn_save_slot_5" },
+	{ (DreamcastKey)EMU_BTN_SAVE_SLOT_6, "emulator", "btn_save_slot_6" },
+	{ (DreamcastKey)EMU_BTN_SAVE_SLOT_7, "emulator", "btn_save_slot_7" },
+	{ (DreamcastKey)EMU_BTN_SAVE_SLOT_8, "emulator", "btn_save_slot_8" },
+	{ (DreamcastKey)EMU_BTN_SAVE_SLOT_9, "emulator", "btn_save_slot_9" },
+	{ (DreamcastKey)EMU_BTN_SAVE_SLOT_10, "emulator", "btn_save_slot_10" },
+
+	{ (DreamcastKey)EMU_BTN_LOAD_SLOT_1, "emulator", "btn_load_slot_one" },
+	{ (DreamcastKey)EMU_BTN_LOAD_SLOT_2, "emulator", "btn_load_slot_two" },
+	{ (DreamcastKey)EMU_BTN_LOAD_SLOT_3, "emulator", "btn_load_slot_three" },
+	{ (DreamcastKey)EMU_BTN_LOAD_SLOT_4, "emulator", "btn_load_slot_4" },
+	{ (DreamcastKey)EMU_BTN_LOAD_SLOT_5, "emulator", "btn_load_slot_5" },
+	{ (DreamcastKey)EMU_BTN_LOAD_SLOT_6, "emulator", "btn_load_slot_6" },
+	{ (DreamcastKey)EMU_BTN_LOAD_SLOT_7, "emulator", "btn_load_slot_7" },
+	{ (DreamcastKey)EMU_BTN_LOAD_SLOT_8, "emulator", "btn_load_slot_8" },
+	{ (DreamcastKey)EMU_BTN_LOAD_SLOT_9, "emulator", "btn_load_slot_9" },
+	{ (DreamcastKey)EMU_BTN_LOAD_SLOT_10, "emulator", "btn_load_slot_10" },
 };
 
 static struct
@@ -470,7 +501,10 @@ void InputMapping::load(FILE* fp)
 			WARN_LOG(INPUT, "Invalid bind entry: %s", s.c_str());
 			break;
 		}
-		u32 code = atoi(s.substr(0, colon).c_str());
+
+		std::string codeStr = s.substr(0, colon);
+		InputDef inputDef = InputDef::from_str(codeStr);
+
 		std::string key = s.substr(colon + 1);
 		if (key.empty())
 		{
@@ -484,7 +518,11 @@ void InputMapping::load(FILE* fp)
 			key = key.substr(0, key.size() - 1);
 		}
 		DreamcastKey id = getKeyId(key);
-		set_button(port, id, code);
+		if (inputDef.is_valid())
+			set_button(port, id, ButtonCombo{ InputSet{inputDef}, false });
+		else
+			// Fallback
+			set_button(port, id, atoi(codeStr.c_str()));
 	}
 	bindIndex = 0;
 	while (true)
